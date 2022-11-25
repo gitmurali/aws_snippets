@@ -26,8 +26,6 @@ def lambda_handler(event, context):
     action = event["action"]
     
     instance_ids = get_instance_ids(instance_names)
-
-    print(instance_ids)
     
     response = ''
     if action == 'Start':
