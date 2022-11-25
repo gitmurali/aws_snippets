@@ -1,0 +1,4 @@
+{
+  "Instances": "new-ec2,new-ec2-1",
+  "action": "Stop"
+}
