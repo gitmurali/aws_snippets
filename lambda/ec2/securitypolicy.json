@@ -7,11 +7,14 @@
       "Action": [
         "ec2:AuthorizeSecurityGroupEgress",
         "ec2:AuthorizeSecurityGroupIngress",
+        "ec2:DescribeInstances",
+        "ec2:StartInstances",
         "ec2:DescribeTags",
         "ec2:CreateKeyPair",
         "ec2:CreateSecurityGroup",
         "ec2:CreateTags",
-        "ec2:RunInstances"
+        "ec2:RunInstances",
+        "ec2:StopInstances"
       ],
       "Resource": "*",
       "Condition": {
