@@ -1,0 +1,28 @@
+{
+  "Version": "2012-10-17",
+  "Id": "my-bucket-policy",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "<arn>/*"
+    },
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "*"
+      },
+      "Action": "s3:PutObject",
+      "Resource": "<arn>/*"
+    },
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "*"
+      },
+      "Action": "s3:DeleteBucket",
+      "Resource": "<arn>"
+    }
+  ]
+}
