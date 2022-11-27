@@ -1,0 +1,33 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:Describe*",
+        "dynamodb:Get*",
+        "dynamodb:List*",
+        "dynamodb:Batch*",
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:Get*",
+        "logs:List*",
+        "logs:Describe*",
+        "logs:PutLogEvents",
+        "dynamodb:PutItem",
+        "cloudwatch:Describe*",
+        "cloudwatch:Get*",
+        "cloudwatch:List*",
+        "sns:CreateTopic",
+        "application-autoscaling:Describe*",
+        "s3:PutObject",
+        "s3:List*",
+        "s3:Get*",
+        "dynamodb:Scan",
+        "tag:Describe*",
+        "tag:Get*"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
