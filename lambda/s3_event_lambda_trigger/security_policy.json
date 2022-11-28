@@ -1,0 +1,58 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "VisualEditor0",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:Describe*",
+        "ec2:RunInstances",
+        "ec2:StartInstances",
+        "ec2:StopInstances",
+        "cloudwatch:DescribeAlarms",
+        "compute-optimizer:GetEnrollmentStatus",
+        "elasticloadbalancing:Describe*"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "ec2:Region": "us-east-1"
+        }
+      }
+    },
+    {
+      "Sid": "SESLimitedAccess",
+      "Effect": "Allow",
+      "Action": [
+        "ses:CreateCustomVerificationEmailTemplate",
+        "ses:Describe*",
+        "ses:Get*",
+        "ses:List*",
+        "ses:VerifyEmailAddress",
+        "ses:VerifyEmailIdentity",
+        "ses:CreateEmailIdentity",
+        "ses:TagResource",
+        "route53:List*",
+        "ses:SendEmail",
+        "ses:SendRawEmail",
+        "ses:SendTemplatedEmail"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["logs:*"],
+      "Resource": "arn:aws:logs:*:*:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::*"
+    }
+  ]
+}
