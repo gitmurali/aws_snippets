@@ -4,7 +4,7 @@
   "States": {
     "invokeLambda": {
       "Type": "Task",
-      "Resource": "<your_bucket_arn>",
+      "Resource": "<your_lambda_arn>",
       "End": true
     }
   }
