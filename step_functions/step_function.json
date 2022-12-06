@@ -1,0 +1,11 @@
+{
+  "Comment": "invoke a lambda function",
+  "StartAt": "invokeLambda",
+  "States": {
+    "invokeLambda": {
+      "Type": "Task",
+      "Resource": "<your_bucket_arn>",
+      "End": true
+    }
+  }
+}
