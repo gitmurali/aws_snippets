@@ -1,0 +1,5 @@
+{
+  "student_id": "$input.params('student_id')",
+  "column_name": "$input.params('table_clmn_name')",
+  "column_value": "$input.params('table_clmn_value')"
+}
