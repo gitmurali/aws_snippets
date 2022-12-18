@@ -1,4 +1,3 @@
-
 import json
 import boto3
 
@@ -10,8 +9,8 @@ def lambda_handler(event, context):
     
     try:
         student_id = event['student_id']
-        column_name = event['table_column_name']
-        column_value = event['table_column_value']
+        column_name = event['table_clmn_name']
+        column_value = event['table_clmn_value']
         response = table.update_item(
             Key={'id': student_id},
             UpdateExpression="SET {} = :l".format(column_name),
