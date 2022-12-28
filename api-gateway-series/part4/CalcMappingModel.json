@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Calculator Mapping Model",
+  "type": "object",
+  "properties": {
+    "operation": {
+      "type": "string"
+    },
+    "inputs": {
+      "type": "object",
+      "properties": {
+        "op1": {
+          "type": "number"
+        },
+        "op2": {
+          "type": "number"
+        }
+      },
+      "required": ["op1", "op2"]
+    }
+  },
+  "required": ["operation", "inputs"]
+}
