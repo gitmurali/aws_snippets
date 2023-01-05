@@ -1,0 +1,154 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "cloudtrail:List*",
+                "cloudtrail:PutInsightSelectors",
+                "cloudtrail:PutEventSelectors",
+                "cloudtrail:StopLogging",
+                "cloudtrail:StartLogging",
+                "cloudtrail:AddTags",
+                "cloudtrail:UpdateTrail",
+                "cloudtrail:CreateTrail",
+                "cloudtrail:Describe*",
+                "cloudtrail:Get*"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "ForAllValues:StringEquals": {
+                    "aws:RequestedRegion": "us-east-1"
+                }
+            }
+        },
+        {
+            "Sid": "VisualEditor1",
+            "Effect": "Allow",
+            "Action": [
+                "cloudwatch:List*",
+                "cloudwatch:Get*",
+                "cloudwatch:Describe*"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "ForAllValues:StringEquals": {
+                    "aws:RequestedRegion": "us-east-1"
+                }
+            }
+        },
+        {
+            "Sid": "VisualEditor2",
+            "Effect": "Allow",
+            "Action": [
+                "config:Get*",
+                "config:List*",
+                "config:Describe*"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:RequestedRegion": "us-east-1"
+                }
+            }
+        },
+        {
+            "Sid": "VisualEditor3",
+            "Effect": "Allow",
+            "Action": [
+                "iam:Get*",
+                "iam:List*",
+                "iam:AttachRolePolicy"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:RequestedRegion": "us-east-1"
+                }
+            }
+        },
+        {
+            "Sid": "VisualEditor4",
+            "Effect": "Allow",
+            "Action": [
+                "kms:EnableKeyRotation",
+                "kms:EnableKey",
+                "kms:Decrypt",
+                "kms:TagResource",
+                "kms:UntagResource",
+                "kms:List*",
+                "kms:Encrypt",
+                "kms:Get*",
+                "kms:CreateAlias",
+                "kms:Describe*",
+                "kms:CreateKey",
+                "kms:DisableKey"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:RequestedRegion": "us-east-1"
+                }
+            }
+        },
+        {
+            "Sid": "VisualEditor5",
+            "Effect": "Allow",
+            "Action": [
+                "organizations:Describe*",
+                "organizations:List*"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:RequestedRegion": "us-east-1"
+                }
+            }
+        },
+        {
+            "Sid": "VisualEditor6",
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutAccountPublicAccessBlock",
+                "s3:PutBucketPublicAccessBlock",
+                "s3:PutBucketOwnershipControls",
+                "s3:Get*",
+                "s3:CreateBucket",
+                "s3:List*",
+                "s3:PutObject",
+                "s3:PutObjectVersionAcl",
+                "s3:PutBucketAcl",
+                "s3:PutBucketPolicy",
+                "s3:PutAccessPointPolicy",
+                "s3:PutBucketVersioning",
+                "s3:PutObjectAcl",
+                "iam:PassRole",
+                "iam:CreateServiceLinkedRole"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "VisualEditor7",
+            "Effect": "Allow",
+            "Action": "tag:Get*",
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:RequestedRegion": "us-east-1"
+                }
+            }
+        },
+        {
+            "Sid": "VisualEditor8",
+            "Effect": "Deny",
+            "Action": "s3:*",
+            "Resource": "*",
+            "Condition": {
+                "ForAllValues:StringNotEqualsIfExists": {
+                    "aws:RequestedRegion": "us-east-1"
+                }
+            }
+        }
+    ]
+}
