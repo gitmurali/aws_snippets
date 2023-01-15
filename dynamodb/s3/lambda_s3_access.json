@@ -1,0 +1,44 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:List*",
+        "s3:Get*",
+        "s3:Put*",
+        "s3:CreateBucket",
+        "s3:DeleteBucket",
+        "s3-object-lambda:List*",
+        "s3-object-lambda:Get*",
+        "s3:PutBucketNotification"
+      ],
+      "Resource": [
+        "arn:aws:s3:::dynamodb-json-backup",
+        "arn:aws:s3:::dynamodb-json-backup/*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+      "Action": [
+        "dynamodb:Get*",
+        "dynamodb:List*",
+        "dynamodb:Describe*",
+        "dynamodb:CreateTable",
+        "dynamodb:DeleteTable",
+        "dynamodb:Scan"
+      ],
+      "Effect": "Allow",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    }
+  ]
+}
