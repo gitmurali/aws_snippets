@@ -11,7 +11,7 @@ creds = credentials.get_frozen_credentials()
 region = 'eu-west-2'
 service = 'es'
 
-host = 'https://search-movies-cnl2tufhuy2b6m5ty6bisa2234.eu-west-2.es.amazonaws.com' # The OpenSearch domain endpoint with https:// and without a trailing slash
+host = 'https://search-movies-cnl2tufhuy2b6m5ty6bisa2234.eu-west-2.es.amazonaws.com'
 index = 'movies'
 url = host + '/' + index + '/_search'
 
