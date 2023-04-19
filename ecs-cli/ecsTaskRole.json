@@ -1,0 +1,36 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "secretsmanager:GetSecretValue",
+                "ssm:GetParameters",
+                "kms:Decrypt"
+            ],
+            "Resource": [
+                "arn:aws:secretsmanager:<Your-region>:<your-account-id>:secret:*",
+                "arn:aws:ssm:<Your-region>:<your-account-id>:parameter/*",
+                "arn:aws:kms:<Your-region>:<your-account-id>:*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::<account>-<account-id>/env-demo.env"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetBucketLocation"
+            ],
+            "Resource": [
+                "arn:aws:s3:::<account>-<account-id>"
+            ]
+        }
+    ]
+}
