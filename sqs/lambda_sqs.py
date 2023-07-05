@@ -8,7 +8,7 @@ def lambda_handler(event, context):
 
     try:
         s3Client = boto3.client("s3", region_name= "us-east-1")
-        Response = s3Client.put_object(Bucket= bucket_name, Key= "Message.json", Body= json.dumps(sqs_msg))
+        Response = s3Client.put_object(Bucket= bucket_name, Key= "sqs_message.json", Body= json.dumps(sqs_msg))
         print("S3 upload successful !")
 
         return {
