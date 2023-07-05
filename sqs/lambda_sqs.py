@@ -4,7 +4,7 @@ import boto3
 def lambda_handler(event, context):
     sqs_msg = json.loads(event['Records'][0]['body'])
     print("SQS Message : ", sqs_msg)
-    bucket_name = "s3_bucket_name"
+    bucket_name = "sqs-lambda-bucket-123"
 
     try:
         s3Client = boto3.client("s3", region_name= "us-east-1")
