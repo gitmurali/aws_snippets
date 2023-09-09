@@ -1,0 +1,6 @@
+build:
+  commands:
+    - echo Build steps started
+    - mvn clean install
+    - mvn surefire-report:report
+    - echo ********* Build steps finished *********

@@ -1,0 +1,7 @@
+pre_build:
+  commands:
+    - echo Pre-Build steps Started
+    - mvn test #-f surefire/pom.xml -fn
+    - echo
+    - mvn verify
+    - echo ********* Pre-Build steps finished *********

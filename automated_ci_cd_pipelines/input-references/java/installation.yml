@@ -1,0 +1,5 @@
+install:
+  runtime-versions:
+    java: corretto8
+  commands:
+    - echo ********* Installation steps finished *********

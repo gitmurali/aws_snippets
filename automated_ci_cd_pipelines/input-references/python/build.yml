@@ -1,0 +1,4 @@
+build:
+  commands:
+    - python -m pytest --junitxml=pytest_reports/pytest_report.xml
+    - echo Build steps are completed

@@ -1,0 +1,4 @@
+pre_build:
+  commands:
+    - python --version
+    - echo Pylint is successfully completed

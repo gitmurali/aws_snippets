@@ -1,0 +1,6 @@
+reports:
+  sample-java-app-report:
+    files:
+      - "./*.xml"
+    base-directory: "target/surefire-reports"
+    file-format: "JUNITXML"

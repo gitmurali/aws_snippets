@@ -1,0 +1,876 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Creation of Lambda Function, Step Function and S3 Bucket along with required IAM roles& Policies.
+Parameters:
+  S3TemplateBucketName:
+    Type: String
+    Description: The name of the S3 bucket which has the source code and references. BucketName should be in lowercase.
+  StateMachineName:
+    Type: String
+    Description: The name of the state machine.
+    Default: "statemachine-ci-pipelinecreation"
+  DynamoDBTable:
+    Type: String
+    Description: The name of the DynamoDB Table.
+    Default: "DynamoDB-pipelinecreation"
+
+Resources:
+  DynamoDBTableStateMachine:
+    Type: AWS::DynamoDB::Table
+    #checkov:skip=CKV_AWS_119:Enabled default server side encryption
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Explicit names are used for the dynamodb table.
+    Properties:
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: True
+      BillingMode: "PROVISIONED"
+      AttributeDefinitions:
+        - AttributeName: "techstack"
+          AttributeType: "S"
+        - AttributeName: "projectname"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "techstack"
+          KeyType: "HASH"
+        - AttributeName: "projectname"
+          KeyType: "RANGE"
+      ProvisionedThroughput:
+        ReadCapacityUnits: "5"
+        WriteCapacityUnits: "5"
+      SSESpecification:
+        SSEEnabled: true
+      TableName: !Ref "DynamoDBTable"
+      TableClass: "STANDARD"
+
+
+  AWSLambdaPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - s3:ListAllMyBuckets
+              - s3:ListBucket
+            Effect: Allow
+            Resource: !Join
+            - ''
+            - - 'arn:aws:s3:::'
+              - !Ref S3TemplateBucketName
+          - Action:
+              - s3:ListAllMyBuckets
+              - s3:ListBucket
+              - s3:GetBucketLocation
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectVersion
+            Effect: Allow
+            Resource: !Join
+            - ''
+            - - 'arn:aws:s3:::'
+              - !Ref S3TemplateBucketName
+              - /*
+      Roles:
+        - !Ref "AWSLambdaRole"
+
+  AWSLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  ListResourcesPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Roles:
+        - !Ref "StateMachineRole"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - codepipeline:List*
+              - codepipeline:Get*
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:codepipeline:*:${AWS::AccountId}:webhook:*"
+              - !Sub "arn:aws:codepipeline:*:${AWS::AccountId}:actiontype:*/*/*/*"
+              - !Sub "arn:aws:codepipeline:*:${AWS::AccountId}:*/*/*"
+              - !Sub "arn:aws:codepipeline:*:${AWS::AccountId}:*"
+              - !Sub "arn:aws:codepipeline:*:${AWS::AccountId}:*/*"
+          - Action:
+              - logs:DescribeLogGroups
+              - logs:DescribeResourcePolicies
+              - logs:GetLogDelivery
+              - logs:ListLogDeliveries
+              - logs:GetLogEvents
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+              - "arn:aws:logs:*:*:log-group:/aws/codebuild/*:log-stream:*"
+          - Action:
+              - lambda:List*
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:*"
+          - Action:
+              - iam:List*
+              - iam:Get*
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:iam::${AWS::AccountId}:role/*"
+              - !Sub "arn:aws:iam::${AWS::AccountId}:policy/*"
+          - Action:
+              - s3:List*
+              - s3:Get*
+            Effect: Allow
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref S3TemplateBucketName
+                - /*
+          - Action:
+              - codecommit:Get*
+              - codecommit:List*
+              - codecommit:BatchGetRepositories
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:*"
+          - Action:
+              - dynamodb:List*
+              - dynamodb:GetItem
+              - dynamodb:DescribeLimits
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:*"
+          - Action:
+              - cloudwatch:Describe*
+              - cloudwatch:GetMetricStatistics
+              - cloudwatch:ListMetrics
+              - cloudwatch:GetMetricData
+              - cloudwatch:GetInsightRuleReport
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:*"
+              - "arn:aws:cloudwatch:*:*:insight-rule/*"
+          - Action:
+              - ssm:ListDocumentVersions
+              - ssm:ListCommands
+              - ssm:ListAssociations
+              - ssm:Get*
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:*"
+              - "arn:aws:ssm:*:*:parameter/CodeBuild/*"
+          - Action:
+              - codebuild:DescribeTestCases
+              - codebuild:GetResourcePolicy
+              - codebuild:List*
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:*"
+          - Action:
+              - cloudformation:List*
+              - cloudformation:Describe*
+              - cloudformation:GetTemplateSummary
+              - cloudformation:GetStackPolicy
+              - cloudformation:GetTemplate
+
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:*"
+
+  CodePipelineStateMachinePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Roles:
+        - !Ref "StateMachineRole"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - codepipeline:CreatePipeline
+              - codepipeline:PutJobFailureResult
+              - codepipeline:StartPipelineExecution
+              - codepipeline:PutJobSuccessResult
+              - codepipeline:AcknowledgeJob
+              - codepipeline:UpdatePipeline
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:codepipeline:*:${AWS::AccountId}:webhook:*"
+              - !Sub "arn:aws:codepipeline:*:${AWS::AccountId}:actiontype:*/*/*/*"
+              - !Sub "arn:aws:codepipeline:*:${AWS::AccountId}:*/*/*"
+              - !Sub "arn:aws:codepipeline:*:${AWS::AccountId}:*"
+              - !Sub "arn:aws:codepipeline:*:${AWS::AccountId}:*/*"
+
+  LambdaStateMachinePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Roles:
+        - !Ref "StateMachineRole"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - logs:CreateLogDelivery
+              - logs:PutResourcePolicy
+              - logs:UpdateLogDelivery
+              - lambda:InvokeFunction
+              - lambda:CreateFunction
+              - lambda:CreateEventSourceMapping
+              - lambda:GetFunctionConfiguration
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+              - "arn:aws:logs:*:*:log-group:/aws/codebuild/*:log-stream:*"
+              - !GetAtt AWSLambdaFunction.Arn
+          - Action:
+              - iam:AttachRolePolicy
+              - iam:CreatePolicy
+              - iam:PassRole
+              - iam:CreateRole
+              - iam:PutRolePolicy
+              - iam:PutRolePolicy
+              - iam:UpdateRole
+              - iam:UpdateRoleDescription
+              - iam:AttachUserPolicy
+              - iam:PutUserPolicy
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:iam::${AWS::AccountId}:role/Codebuild-Role-${AWS::Region}"
+              - !Sub "arn:aws:iam::${AWS::AccountId}:role/Codepipeline-Role-${AWS::Region}"
+              - !Sub "arn:aws:iam::${AWS::AccountId}:role/Pipeline-CFT-Role-${AWS::Region}"
+              - !Sub "arn:aws:iam::${AWS::AccountId}:policy/codebuild-policy-${AWS::Region}"
+              - !Sub "arn:aws:iam::${AWS::AccountId}:policy/codepipeline-policy-${AWS::Region}"
+          - Action:
+              - s3:CreateBucket
+              - s3:PutObject
+              - s3:PutBucketTagging
+              - s3:PutBucketAcl
+              - s3:PutObjectTagging
+              - s3:PutBucketVersioning
+              - s3:PutBucketPolicy
+              - s3:PutBucketPublicAccessBlock
+              - s3:PutPublicAccessBlock
+              - s3:PutEncryptionConfiguration
+            Effect: Allow
+            Resource:
+              - 'arn:aws:s3:::deployment-artifact-bucket*'
+              - 'arn:aws:s3:::deployment-artifact-bucket*/*'
+
+
+  LambdaStateMachinePolicyIAMRollback:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Roles:
+        - !Ref "StateMachineRole"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - iam:DeleteRolePolicy
+              - iam:DeleteRole
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:iam::${AWS::AccountId}:role/Codebuild-Role-${AWS::Region}"
+              - !Sub "arn:aws:iam::${AWS::AccountId}:role/Codepipeline-Role-${AWS::Region}"
+              - !Sub "arn:aws:iam::${AWS::AccountId}:role/Pipeline-CFT-Role-${AWS::Region}"
+
+  AWSCodeCommitStateMachinePolicy:
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W13
+            reason: Usage of * allowed for Listing repositories.
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Roles:
+        - !Ref "StateMachineRole"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: CodeCommitAccess
+            Effect: Allow
+            Action:
+              - codecommit:CreateBranch
+              - codecommit:CreateRepository
+              - codecommit:PutFile
+              - codecommit:CreateCommit
+              - codecommit:UpdateComment
+              - codecommit:GitPull
+              - codecommit:GitPush
+            Resource:
+                - !Sub "arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:*"
+
+
+  AmazonDynamoDBStateMachinePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Roles:
+        - !Ref "StateMachineRole"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:CreateTable
+              - dynamodb:DescribeTable
+              - dynamodb:UpdateTable
+            Effect: Allow
+            Resource:
+              - !GetAtt DynamoDBTableStateMachine.Arn
+
+  AmazonSSMStateMachinePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Roles:
+        - !Ref "StateMachineRole"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+            - ssm:PutParameter
+            Resource:
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:*"
+              - "arn:aws:ssm:*:*:parameter/CodeBuild/*"
+  AWSCodeBuildStateMachinePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Roles:
+        - !Ref "StateMachineRole"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+            - codebuild:UpdateProject
+            - codebuild:BatchGetBuilds
+            - codebuild:BatchGetProjects
+            - codebuild:CreateProject
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:*"
+
+  AWSCloudFormationStateMachinePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Roles:
+        - !Ref "StateMachineRole"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - cloudformation:CreateUploadBucket
+              - cloudformation:DetectStackDrift
+              - cloudformation:CancelUpdateStack
+              - cloudformation:ContinueUpdateRollback
+              - cloudformation:DetectStackResourceDrift
+              - cloudformation:UpdateStack
+              - cloudformation:CreateStack
+            Resource:
+              - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:*"
+
+  StateMachineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+
+  AWSLambdaFunction:
+    Type: AWS::Lambda::Function
+    #checkov:skip=CKV_AWS_173:By default Lambda uses an AWS KMS key that Lambda creates in your account to encrypt your environment variables
+    #checkov:skip=CKV_AWS_115:Concurrancy is not required at this level for this function
+    #checkov:skip=CKV_AWS_117:VPC is not required for this lambda function
+    #checkov:skip=CKV_AWS_116:Dead Letter queue is not configured for this lambda function as it doesn't have any asynchronous invocations
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: Lambda function is not owned by VPC.
+          - id: W92
+            reason: reserve simultaneous executions is not required for this function
+    Properties:
+      FunctionName: "AWSLambda-Function-pipelinecreation"
+      Runtime: "python3.9"
+      Role:
+        Fn::GetAtt:
+          - AWSLambdaRole
+          - Arn
+      Handler: "index.lambda_handler"
+      Timeout: 300
+      Code:
+        ZipFile: |
+          import json
+          import os
+          import boto3
+          import sys
+          import subprocess
+          from collections import OrderedDict
+          from io import BytesIO, StringIO
+          import zipfile
+          from datetime import *
+          import re
+          from zipfile import ZipFile, ZIP_DEFLATED
+          import botocore.exceptions
+          import tempfile
+          import io
+
+          # pip install custom package to /tmp/ and add to path
+          subprocess.call("pip3 install pyyaml -t /tmp/ --no-cache-dir".split(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+          sys.path.insert(1, "/tmp/")
+          import yaml
+          subprocess.call("pip3 install ruamel_yaml -t /tmp/ --no-cache-dir".split(), stdout=subprocess.DEVNULL)
+          import ruamel.yaml
+          yamll=ruamel.yaml.YAML()
+          from ruamel.yaml.comments import CommentedMap as OrderedDict
+
+
+          s3_client = boto3.client("s3")
+          s3_resource = boto3.resource("s3")
+          S3_BUCKET = os.environ["S3_Bucket_Name"]
+          codecommit = boto3.client("codecommit")
+
+
+          def lambda_handler(event, context):
+            print(event)
+            data = OrderedDict()
+            S3_PREFIX = 'input-references/'f'{event["tech_stack"]}/'
+            FINAL_ZIPPED = 'samplecode/'f'{event["tech_stack"]}/'
+            print(f'The selected tech-stack is: {event["tech_stack"]}')
+            tech_stack_event = event["tech_stack"] + '/'
+            zip_file_name = event["tech_stack"] + '-templates.zip'
+            s3_resource.Bucket(S3_BUCKET).download_file(S3_PREFIX+"common.yml", "/tmp/common.yml")
+            print (read_yaml_file("/tmp/common.yml"))
+            data.update(read_yaml_file("/tmp/common.yml"))
+            s3_resource.Bucket(S3_BUCKET).download_file(S3_PREFIX + "installation.yml", "/tmp/installation.yml")
+            data["phases"]=read_yaml_file("/tmp/installation.yml")
+
+            if event["pre_build"] == "yes":
+                s3_resource.Bucket(S3_BUCKET).download_file(S3_PREFIX + "pre_build.yml", "/tmp/pre_build.yml")
+                data["phases"].update(read_yaml_file("/tmp/pre_build.yml"))
+
+            if event["build"] == "yes":
+                s3_resource.Bucket(S3_BUCKET).download_file(S3_PREFIX + "build.yml", "/tmp/build.yml")
+                data["phases"].update(read_yaml_file("/tmp/build.yml"))
+
+            if event["post_build"] == "yes":
+                s3_resource.Bucket(S3_BUCKET).download_file(S3_PREFIX + "post_build.yml", "/tmp/post_build.yml")
+                data["phases"].update(read_yaml_file("/tmp/post_build.yml"))
+
+            if event["reports"] == "yes" and event["build"] == "yes":
+                s3_resource.Bucket(S3_BUCKET).download_file(S3_PREFIX + "reports.yml", "/tmp/reports.yml")
+                data.update(read_yaml_file("/tmp/reports.yml"))
+
+            yaml.add_multi_constructor("", any_constructor, Loader=yaml.SafeLoader)
+            yaml.add_representer(OrderedDict, ordered_dict_representer)
+
+            write_yaml_file("/tmp/buildspec.yml", data)
+            s3_resource.Bucket(S3_BUCKET).upload_file("/tmp/buildspec.yml", FINAL_ZIPPED + "buildspec.yml")
+
+
+          #GENERATING ARTIFACT
+
+            bucket=os.environ["S3_Bucket_Name"]
+            def zipping_files(bucket, output_dir):
+                s3 = boto3.resource("s3")
+                files_to_zip = s3.Bucket(bucket).objects.filter(Prefix='samplecode/'f'{event["tech_stack"]}/')
+                zip_buffer = io.BytesIO()
+                with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zipper:
+                    for file in files_to_zip:
+                        name = file.key[file.key.rfind("/") + 1:]
+                        if name != "":
+                          zipper.writestr(file.key.removeprefix(f'samplecode/{event["tech_stack"]}/'), file.get()["Body"].read())
+                boto3.client("s3").put_object(Bucket=bucket, Key=output_dir, Body=zip_buffer.getvalue())
+            zipping_files(bucket, 'generated-artifacts/'f'{event["tech_stack"]}/'f'{event["project_name"]}/'f'{event["tech_stack"]}-templates.zip')
+
+            return 200
+
+          def ordered_dump(data, stream=None, Dumper=yaml.SafeDumper, **kwds):
+            class OrderedDumper(Dumper):
+                pass
+            def _dict_representer(dumper, data):
+                return dumper.represent_mapping(
+                    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+                    data.items())
+            OrderedDumper.add_representer(OrderedDict, _dict_representer)
+            return yaml.dump(data, stream, OrderedDumper, **kwds)
+
+
+          def read_yaml_file(file_path):
+            with open(file_path, "r") as stream:
+                try:
+                    data = yaml.safe_load(stream)
+                except yaml.YAMLError as exc:
+                    print(exc)
+            return data
+
+
+          def ordered_dict_representer(self, value):  # can be a lambda if that"s what you prefer
+            return self.represent_mapping("tag:yaml.org,2002:map", value.items())
+
+          def write_yaml_file(file_path, data):
+              with open(file_path, "w") as stream:
+                  try:
+                      yamll.dump(data, stream=stream)
+                  except yaml.YAMLError as exc:
+                      print(exc)
+
+
+          def any_constructor(loader, tag_suffix, node):
+            if isinstance(node, yaml.MappingNode):
+                return loader.construct_mapping(node)
+            if isinstance(node, yaml.SequenceNode):
+                return loader.construct_sequence(node)
+            return loader.construct_scalar(node)
+
+
+      Description: The function will be generating buildspec.yml file from the references.
+      TracingConfig:
+        Mode: Active
+      Environment:
+        Variables:
+          S3_Bucket_Name: !Ref "S3TemplateBucketName"
+
+  StateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      DefinitionString: !Sub |
+        {
+          "Comment": "A description of my state machine",
+          "StartAt": "Pipeline creation request received",
+          "States": {
+            "Pipeline creation request received": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::dynamodb:putItem",
+              "Parameters": {
+                "TableName": "${DynamoDBTable}",
+                "Item": {
+                  "techstack": {
+                    "S.$": "$.tech_stack"
+                  },
+                  "projectname": {
+                    "S.$": "$.project_name"
+                  },
+                  "pipelinestatus": {
+                    "S": "Request received for pipeline creation."
+                  }
+                }
+              },
+              "Next": "Invoke Pipeline Creation",
+              "InputPath": "$.details",
+              "ResultPath": null
+            },
+            "Invoke Pipeline Creation": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "Payload.$": "$",
+                "FunctionName": "${AWSLambdaFunction}"
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException"
+                  ],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 6,
+                  "BackoffRate": 2
+                }
+              ],
+              "Next": "Check dependencies",
+              "InputPath": "$.details",
+              "ResultPath": null
+            },
+            "Check dependencies": {
+              "Type": "Task",
+              "Next": "Update dependencies",
+              "Parameters": {
+                "StackName": "pipeline-creation-dependencies-stack"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:cloudformation:describeStacks",
+              "InputPath": "$.details",
+              "ResultPath": null,
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "Next": "Create dependencies",
+                  "Comment": "Dependencies does not exist",
+                  "ResultPath": "$.input"
+                }
+              ]
+            },
+            "Update dependencies": {
+              "Type": "Task",
+              "Next": "Check dependency status",
+              "Parameters": {
+                "StackName": "pipeline-creation-dependencies-stack",
+                "TemplateURL": "https://${S3TemplateBucketName}.s3.${AWS::Region}.amazonaws.com/pipeline_dependencies.yml",
+                "Capabilities": [
+                  "CAPABILITY_NAMED_IAM"
+                ]
+              },
+              "Resource": "arn:aws:states:::aws-sdk:cloudformation:updateStack",
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "Comment": "No Updates",
+                  "Next": "Check dependency status",
+                  "ResultPath": "$.input"
+                }
+              ],
+              "InputPath": "$.details",
+              "ResultPath": null
+            },
+            "Create dependencies": {
+              "Type": "Task",
+              "Parameters": {
+                "StackName": "pipeline-creation-dependencies-stack",
+                "TemplateURL":  "https://${S3TemplateBucketName}.s3.${AWS::Region}.amazonaws.com/pipeline_dependencies.yml",
+                "Capabilities": [
+                  "CAPABILITY_NAMED_IAM"
+                ]
+              },
+              "Resource": "arn:aws:states:::aws-sdk:cloudformation:createStack",
+              "Next": "Check dependency status",
+              "InputPath": "$.details",
+              "ResultPath": null
+            },
+            "Check dependency status": {
+              "Type": "Task",
+              "Next": "Evaluate dependency status",
+              "Parameters": {
+                "StackName": "pipeline-creation-dependencies-stack"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:cloudformation:describeStacks",
+              "InputPath": "$.details",
+              "ResultPath": "$.pipelinestatus"
+            },
+            "Evaluate dependency status": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Or": [
+                    {
+                      "Variable": "$.pipelinestatus.Stacks[0].StackStatus",
+                      "StringEquals": "UPDATE_COMPLETE"
+                    },
+                    {
+                      "Variable": "$.pipelinestatus.Stacks[0].StackStatus",
+                      "StringEquals": "CREATE_COMPLETE"
+                    }
+                  ],
+                  "Next": "Pipeline creation Initiated"
+                }
+              ],
+              "Default": "Wait for dependcy to be available"
+            },
+            "Wait for dependcy to be available": {
+              "Type": "Wait",
+              "Seconds": 5,
+              "Next": "Check dependency status",
+              "InputPath": "$",
+              "OutputPath": "$"
+            },
+            "Pipeline creation Initiated": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::dynamodb:updateItem",
+              "Parameters": {
+                "TableName": "${DynamoDBTable}",
+                "Key": {
+                  "techstack": {
+                    "S.$": "$.tech_stack"
+                  },
+                  "projectname": {
+                    "S.$": "$.project_name"
+                  }
+                },
+                "UpdateExpression": "SET pipelinestatus = :newval",
+                "ExpressionAttributeValues": {
+                  ":newval": {
+                    "S": "Pipeline creation Initiated"
+                  }
+                }
+              },
+              "Next": "Check Pipeline exists",
+              "InputPath": "$.details",
+              "ResultPath": null
+            },
+            "Check Pipeline exists": {
+              "Type": "Task",
+              "Parameters": {
+                "StackName.$": "States.Format('{}-Stack', $.project_name)"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:cloudformation:describeStacks",
+              "InputPath": "$.details",
+              "ResultPath": null,
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "Comment": "pipeline",
+                  "Next": "Create Pipeline",
+                  "ResultPath": "$.input"
+                }
+              ],
+              "Next": "Update Pipeline"
+            },
+            "Update Pipeline": {
+              "Type": "Task",
+              "Next": "Check Pipeline Creation/Update status",
+              "Parameters": {
+                "StackName.$": "States.Format('{}-Stack', $.project_name)",
+                "TemplateURL":  "https://${S3TemplateBucketName}.s3.${AWS::Region}.amazonaws.com/pipelinecreation_stack.yml",
+                "Parameters": [
+                  {
+                    "ParameterKey": "TechStack",
+                    "ParameterValue.$": "$.tech_stack"
+                  },
+                  {
+                    "ParameterKey": "ProjectName",
+                    "ParameterValue.$": "$.project_name"
+                  }
+                ]
+              },
+              "Resource": "arn:aws:states:::aws-sdk:cloudformation:updateStack",
+              "InputPath": "$.details",
+              "ResultPath": null,
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "States.TaskFailed"
+                  ],
+                  "Comment": "No stack changes",
+                  "Next": "Check Pipeline Creation/Update status",
+                  "ResultPath": "$.input"
+                }
+              ]
+            },
+            "Create Pipeline": {
+              "Type": "Task",
+              "Parameters": {
+                "StackName.$": "States.Format('{}-Stack', $.project_name)",
+                "TemplateURL":  "https://${S3TemplateBucketName}.s3.${AWS::Region}.amazonaws.com/pipelinecreation_stack.yml",
+                "Parameters": [
+                  {
+                    "ParameterKey": "TechStack",
+                    "ParameterValue.$": "$.tech_stack"
+                  },
+                  {
+                    "ParameterKey": "ProjectName",
+                    "ParameterValue.$": "$.project_name"
+                  }
+                ]
+              },
+              "Resource": "arn:aws:states:::aws-sdk:cloudformation:createStack",
+              "InputPath": "$.details",
+              "ResultPath": null,
+              "Next": "Check Pipeline Creation/Update status"
+            },
+            "Check Pipeline Creation/Update status": {
+              "Type": "Task",
+              "Parameters": {
+                "StackName.$": "States.Format('{}-Stack', $.project_name)"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:cloudformation:describeStacks",
+              "InputPath": "$.details",
+              "ResultPath": "$.pipelinestatus",
+              "Next": "Evaluate Pipeline creation status"
+            },
+            "Evaluate Pipeline creation status": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Or": [
+                    {
+                      "Variable": "$.pipelinestatus.Stacks[0].StackStatus",
+                      "StringEquals": "CREATE_COMPLETE"
+                    },
+                    {
+                      "Variable": "$.pipelinestatus.Stacks[0].StackStatus",
+                      "StringEquals": "UPDATE_COMPLETE"
+                    }
+                  ],
+                  "Next": "Pipeline creation completed successfully"
+                }
+              ],
+              "Default": "Waiting for Pipeline to be created"
+            },
+            "Waiting for Pipeline to be created": {
+              "Type": "Wait",
+              "Seconds": 10,
+              "Next": "Check Pipeline Creation/Update status",
+              "InputPath": "$",
+              "OutputPath": "$"
+            },
+            "Pipeline creation completed successfully": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::dynamodb:updateItem",
+              "Parameters": {
+                "TableName": "${DynamoDBTable}",
+                "Key": {
+                  "techstack": {
+                    "S.$": "$.tech_stack"
+                  },
+                  "projectname": {
+                    "S.$": "$.project_name"
+                  }
+                },
+                "UpdateExpression": "SET pipelinestatus = :newval",
+                "ExpressionAttributeValues": {
+                  ":newval": {
+                    "S": "Pipeline created successfully"
+                  }
+                }
+              },
+              "End": true,
+              "InputPath": "$.details",
+              "ResultPath": null
+            }
+          }
+        }
+      RoleArn: !GetAtt StateMachineRole.Arn
+      StateMachineName: !Ref "StateMachineName"
+      StateMachineType: STANDARD
+  S3TemplateBucketNameSSMParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: S3TemplateBucketName
+      Type: String
+      Value: !Ref S3TemplateBucketName
+      Description: Template bucket Name for the pipelines
+
+
+  StatemachinePipelineDependencies:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: PipelineDependencyStackUrl
+      Type: String
+      Value: !Join
+        - ""
+        - - "https://"
+          - !Ref S3TemplateBucketName
+          - ".s3.us-east-1.amazonaws.com/pipeline_dependencies.yml"
+      Description: SSM Parameter for pipeline dependency stack.

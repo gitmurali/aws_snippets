@@ -1,0 +1,6 @@
+reports:
+  pytest_reports:
+    files:
+      - "./*.xml"
+    base-directory: pytest_reports/
+    file-format: JUNITXML

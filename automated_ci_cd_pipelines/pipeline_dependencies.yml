@@ -1,0 +1,328 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Creation of IAM Roles & Policies for Codepipeline and Codebuild, Deployment Artifact bucket, SNS Notification topic and SSM Parameters for CSSP Pipelines
+
+Resources:
+  DeploymentArtifactBucket:
+    Type: AWS::S3::Bucket
+    Metadata:
+      #checkov:skip=CKV_AWS_18:Bucket logging configuration set as private
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: Bucket logging configuration set as private
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Join
+        - "-"
+        - - "deployment-artifact-bucket"
+          - !Select
+            - 0
+            - !Split
+              - "-"
+              - !Select
+                - 2
+                - !Split
+                  - "/"
+                  - !Ref "AWS::StackId"
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+
+
+  DeploymentArtifactBucketName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: DeploymentArtifactBucketName
+      Type: String
+      Value: !Ref 'DeploymentArtifactBucket'
+      Description: Deployment Artifiact bucket Name for the pipelines
+
+  DeploymentArtifactBucketARN:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: DeploymentArtifactBucketARN
+      Type: String
+      Value: !GetAtt DeploymentArtifactBucket.Arn
+      Description: Deployment Artifiact bucket ARN for the pipelines
+
+  DeploymentArtifactBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref DeploymentArtifactBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: PolicyforAllowtoUploadObjects
+            Action:
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:PutObject
+            Effect: Allow
+            Resource: !Join
+              - ''
+              - - !GetAtt 'DeploymentArtifactBucket.Arn'
+                - /*
+            Principal:
+              AWS:
+                - !GetAtt CodeBuildRole.Arn
+                - !GetAtt CodePipelineServiceRole.Arn
+                - !GetAtt CloudFormationServiceRole.Arn
+
+          - Sid: PolicyforAllowVersioning
+            Effect: Allow
+            Principal:
+              AWS:
+                - !GetAtt CodeBuildRole.Arn
+                - !GetAtt CodePipelineServiceRole.Arn
+                - !GetAtt CloudFormationServiceRole.Arn
+            Action: s3:PutBucketVersioning
+            Resource: !GetAtt 'DeploymentArtifactBucket.Arn'
+
+
+  CodeBuildPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Explicit names are used for this policy to restrict the access of the statemachine role in the main template.
+    Properties:
+      ManagedPolicyName: !Join
+        - '-'
+        - - 'codebuild-policy'
+          - !Ref 'AWS::Region'
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+          - Action:
+              - codecommit:GitPull
+              - codecommit:ListRepositories
+              - codecommit:GetBranch
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:*"
+          - Action:
+              - s3:PutObject
+              - s3:PutBucketVersioning
+            Effect: Allow
+            Resource:
+              - !GetAtt DeploymentArtifactBucket.Arn
+              - !Join
+                - ''
+                - - !GetAtt DeploymentArtifactBucket.Arn
+                  - /*
+          - Action:
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:ListBucket
+            Effect: Allow
+            Resource:
+              - 'arn:aws:s3:::*'
+          - Action:
+              - ssm:GetParameter
+              - ssm:GetParameters
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:*"
+          - Action:
+              - iam:GetPolicy
+              - iam:ListPolicyVersions
+              - iam:GetRole
+            Effect: Allow
+            Resource:
+              - "arn:aws:iam:::*"
+          - Action:
+              - iam:PassRole
+              - iam:CreateRole
+              - iam:PutRolePolicy
+              - iam:CreatePolicy
+              - iam:AttachRolePolicy
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:iam::${AWS::AccountId}:role/Codebuild-Role-${AWS::Region}"
+              - !Sub "arn:aws:iam::${AWS::AccountId}:role/Codepipeline-Role-${AWS::Region}"
+              - !Sub "arn:aws:iam::${AWS::AccountId}:role/Pipeline-CFT-Role-${AWS::Region}"
+              - !Sub "arn:aws:iam::${AWS::AccountId}:policy/codebuild-policy-${AWS::Region}"
+              - !Sub "arn:aws:iam::${AWS::AccountId}:policy/codepipeline-policy-${AWS::Region}"
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:*"
+      Roles:
+        - !Ref 'CodeBuildRole'
+  CodeBuildRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+      Path: /
+      RoleName: !Join
+        - '-'
+        - - 'Codebuild-Role'
+          - !Ref 'AWS::Region'
+    Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Explicit names are used for this iam role.
+
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Explicit names are used for this iam role.
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+      RoleName: !Join
+        - '-'
+        - - 'Codepipeline-Role'
+          - !Ref 'AWS::Region'
+  CodePipelineServicePolicy:
+    # This policy orchestrates CloudFormation and CodeBuild.
+    Type: AWS::IAM::ManagedPolicy
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Explicit names are used for this policy to restrict the access of the statemachine role in the main template.
+
+    Properties:
+      ManagedPolicyName: !Join
+        - '-'
+        - - 'codepipeline-policy'
+          - !Ref 'AWS::Region'
+      Roles:
+        - !Ref CodePipelineServiceRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: "arn:aws:logs:*:*:*"
+          - Action:
+              - s3:PutObject
+              - s3:PutBucketVersioning
+            Effect: Allow
+            Resource:
+              - !GetAtt DeploymentArtifactBucket.Arn
+              - !Join
+                - ''
+                - - !GetAtt DeploymentArtifactBucket.Arn
+                  - /*
+          - Action:
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:ListBucket
+            Effect: Allow
+            Resource:
+              - 'arn:aws:s3:::*'
+          - Effect: Allow
+            Action:
+              - codebuild:ListProjects
+              - codebuild:RetryBuild
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+              - codebuild:BatchGetBuilds
+            Resource:
+              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:*"
+          - Effect: Allow
+            Action:
+              - codecommit:BatchGetCommits
+              - codecommit:BatchGetRepositories
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - codecommit:GetRepository
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:GitPull
+              - codecommit:ListBranches
+              - codecommit:ListRepositories
+              - codecommit:UploadArchive
+            Resource:
+              - !Sub "arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:*"
+          - Effect: Allow
+            Action:
+              - iam:PassRole
+            Resource: !GetAtt CloudFormationServiceRole.Arn
+  CloudFormationServiceRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Explicit names are used for this iam role.
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - cloudformation.amazonaws.com
+      RoleName: !Join
+        - '-'
+        - - 'Pipeline-CFT-Role'
+          - !Ref 'AWS::Region'
+
+
+  CodePipelineServiceARN:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: CodePipelineServiceRoleARN
+      Type: String
+      Value: !GetAtt CodePipelineServiceRole.Arn
+      Description: SSM Parameter for storing CodePipelineServiceRole ARN
+  CodeBuildRoleARN:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: CodeBuildRoleARN
+      Type: String
+      Value: !GetAtt CodeBuildRole.Arn
+      Description: SSM Parameter for storing CodeBuildRole ARN
+  CodeBuildRoleName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: CodeBuildRoleName
+      Type: String
+      Value: !Ref 'CodeBuildRole'
+      Description: SSM Parameter for storing CodeBuildRole Name
