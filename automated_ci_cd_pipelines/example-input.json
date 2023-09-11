@@ -1,0 +1,10 @@
+{
+  "details": {
+    "tech_stack": "java", // "python" for python projects
+    "project_name": "java-pipeline-project",
+    "pre_build": "yes",
+    "build": "yes",
+    "post_build": "yes",
+    "reports": "yes"
+  }
+}
