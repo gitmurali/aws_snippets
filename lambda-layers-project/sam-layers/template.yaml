@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  # DynamoDB Table
+  LabTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  # Lambda Function
+  NodejsLabFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: NodejsLabFunction
+      CodeUri: src/
+      Handler: putItem.handler
+      Runtime: nodejs16.x
+      Role: YOUR_LambdaExecRole
+      Environment:
+        Variables:
+          TableName: !Ref LabTable
+      Layers:
+        - !Ref NodeLayer
+
+  NodeLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: js-layer
+      Description: Node dependencies for NodejsLabFunction
+      ContentUri: layers/
+      CompatibleRuntimes:
+        - nodejs16.x
+      RetentionPolicy: Delete
+
+Outputs:
+  TableName:
+    Value: !Ref LabTable

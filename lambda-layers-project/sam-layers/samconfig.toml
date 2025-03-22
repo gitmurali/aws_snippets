@@ -1,0 +1,11 @@
+version=0.1
+[default.global.parameters]
+stack_name = "sam-layers"
+ 
+[default.deploy.parameters]
+region = "us-east-1"
+s3_bucket = "YOUR_S3_BUCKET"
+s3_prefix = "layers"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+tags = "project=\"samLayers\" stage=\"development\""
